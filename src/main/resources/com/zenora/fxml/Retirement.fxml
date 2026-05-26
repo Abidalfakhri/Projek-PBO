@@ -25,30 +25,55 @@
                             <Label text="●" styleClass="zn-dot-indigo"/>
                             <Label text="Kalkulator Estimasi Pensiun" styleClass="zn-panel-title"/>
                         </HBox>
-                        <Label text="USIA SAAT INI" styleClass="zn-field-label"/>
-                        <TextField fx:id="currentAgeField" styleClass="zn-field" promptText="contoh: 28" maxWidth="Infinity"/>
+
+                        <!-- Ringkasan dari Profil (read-only) -->
+                        <VBox spacing="6" style="-fx-padding: 4 0 10 0;">
+                            <Label text="DATA DARI PROFIL" styleClass="zn-field-label"/>
+                            <HBox spacing="14" alignment="CENTER_LEFT">
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <Label text="USIA SAAT INI" styleClass="zn-stat-label"/>
+                                    <Label fx:id="profileAgeLabel" text="-" styleClass="zn-stat-value-sm zn-stat-indigo"/>
+                                </VBox>
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <Label text="INFLASI ASUMSI" styleClass="zn-stat-label"/>
+                                    <Label fx:id="profileInflationLabel" text="-" styleClass="zn-stat-value-sm zn-stat-amber"/>
+                                </VBox>
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <Label text="KAPASITAS / BULAN" styleClass="zn-stat-label"/>
+                                    <Label fx:id="profileCapacityLabel" text="-" styleClass="zn-stat-value-sm zn-stat-green"/>
+                                </VBox>
+                            </HBox>
+                            <Button text="✎  Edit di Profil" styleClass="zn-btn-back" onAction="#openProfile"/>
+                            <Label fx:id="profileWarnLabel" text="" styleClass="zn-hint" wrapText="true"/>
+                        </VBox>
+
+                        <Region styleClass="zn-divider" minHeight="1" maxHeight="1"/>
+                        <Region minHeight="10"/>
+
                         <Label text="USIA PENSIUN TARGET" styleClass="zn-field-label"/>
                         <TextField fx:id="retirementAgeField" styleClass="zn-field" promptText="contoh: 55" maxWidth="Infinity"/>
                         <Label text="LAMA PENSIUN (TAHUN)" styleClass="zn-field-label"/>
                         <TextField fx:id="yearsInRetirementField" styleClass="zn-field" promptText="contoh: 25" maxWidth="Infinity"/>
+
                         <Region minHeight="8"/>
                         <Region styleClass="zn-divider" minHeight="1" maxHeight="1"/>
                         <Region minHeight="8"/>
+
                         <Label text="KEBUTUHAN BULANAN SAAT PENSIUN (RP)" styleClass="zn-field-label"/>
                         <TextField fx:id="monthlyNeedField" styleClass="zn-field" promptText="contoh: 5000000" maxWidth="Infinity"/>
-                        <Label text="Dalam nilai uang saat ini, akan disesuaikan inflasi." styleClass="zn-hint"/>
-                        <Label text="INFLASI (% / TAHUN)" styleClass="zn-field-label"/>
-                        <TextField fx:id="inflationField" styleClass="zn-field" promptText="contoh: 5.0" maxWidth="Infinity"/>
+                        <Label text="Dalam nilai uang saat ini, akan disesuaikan inflasi profil." styleClass="zn-hint"/>
+
                         <Label text="RETURN INVESTASI PRA-PENSIUN (% / TAHUN)" styleClass="zn-field-label"/>
                         <TextField fx:id="returnPreField" styleClass="zn-field" promptText="contoh: 8.0" maxWidth="Infinity"/>
                         <Label text="RETURN INVESTASI PASCA-PENSIUN (% / TAHUN)" styleClass="zn-field-label"/>
                         <TextField fx:id="returnPostField" styleClass="zn-field" promptText="contoh: 5.0" maxWidth="Infinity"/>
+
                         <Region minHeight="12"/>
                         <Button text="🔢  Hitung Estimasi" styleClass="zn-btn-primary" maxWidth="Infinity" onAction="#calculate"/>
                         <Region minHeight="12"/>
                         <TextArea fx:id="resultArea" styleClass="zn-result-area"
                                   wrapText="true" editable="false" prefHeight="260" minHeight="220"
-                                  promptText="Isi semua parameter dan klik Hitung..."/>
+                                  promptText="Isi parameter pensiun dan klik Hitung..."/>
                     </VBox>
 
                     <!-- KANAN: GOAL TRACKER -->

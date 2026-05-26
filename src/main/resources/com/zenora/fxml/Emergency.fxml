@@ -19,30 +19,53 @@
             <content>
                 <HBox spacing="16" styleClass="zn-body" fillHeight="true">
 
-                    <!-- KIRI: KALKULATOR -->
+                    <!-- KIRI: KALKULATOR (mengambil data dari Profil) -->
                     <VBox spacing="0" styleClass="zn-panel" minWidth="400" prefWidth="420">
                         <HBox alignment="CENTER_LEFT" spacing="8" styleClass="zn-panel-title-row">
                             <Label text="●" styleClass="zn-dot-green"/>
                             <Label text="Kalkulator Estimasi" styleClass="zn-panel-title"/>
                         </HBox>
-                        <Label text="PENGELUARAN BULANAN (RP)" styleClass="zn-field-label"/>
-                        <TextField fx:id="expenseField" styleClass="zn-field" promptText="contoh: 4.000.000" maxWidth="Infinity"/>
-                        <Label text="STATUS RUMAH TANGGA" styleClass="zn-field-label"/>
-                        <ChoiceBox fx:id="statusChoice" styleClass="zn-choicebox" maxWidth="Infinity"/>
-                        <Label text="Menentukan saran cakupan bulan ideal." styleClass="zn-hint"/>
-                        <Region minHeight="8"/>
+
+                        <!-- Ringkasan dari Profil (read-only) -->
+                        <VBox spacing="6" style="-fx-padding: 4 0 10 0;">
+                            <Label text="DATA DARI PROFIL" styleClass="zn-field-label"/>
+                            <HBox spacing="14" alignment="CENTER_LEFT">
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <Label text="PENGELUARAN / BULAN" styleClass="zn-stat-label"/>
+                                    <Label fx:id="profileExpenseLabel" text="-" styleClass="zn-stat-value-sm zn-stat-green"/>
+                                </VBox>
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <Label text="KAPASITAS / BULAN" styleClass="zn-stat-label"/>
+                                    <Label fx:id="profileCapacityLabel" text="-" styleClass="zn-stat-value-sm zn-stat-indigo"/>
+                                </VBox>
+                            </HBox>
+                            <HBox spacing="14" alignment="CENTER_LEFT">
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <Label text="STATUS" styleClass="zn-stat-label"/>
+                                    <Label fx:id="profileStatusLabel" text="-" styleClass="zn-stat-label"/>
+                                </VBox>
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <Label text="TARGET CAKUPAN" styleClass="zn-stat-label"/>
+                                    <Label fx:id="profileMonthsLabel" text="-" styleClass="zn-stat-label"/>
+                                </VBox>
+                            </HBox>
+                            <Button text="✎  Edit di Profil" styleClass="zn-btn-back" onAction="#openProfile"/>
+                            <Label fx:id="profileWarnLabel" text="" styleClass="zn-hint" wrapText="true"/>
+                        </VBox>
+
                         <Region styleClass="zn-divider" minHeight="1" maxHeight="1"/>
                         <Region minHeight="12"/>
-                        <Label text="CAKUPAN BULAN (opsional)" styleClass="zn-field-label"/>
-                        <TextField fx:id="monthsField" styleClass="zn-field" promptText="kosongkan = saran otomatis" maxWidth="Infinity"/>
-                        <Label text="KAPASITAS MENABUNG / BULAN (RP)" styleClass="zn-field-label"/>
-                        <TextField fx:id="capacityField" styleClass="zn-field" promptText="contoh: 1.000.000" maxWidth="Infinity"/>
+
+                        <Label text="CAKUPAN BULAN (opsional override)" styleClass="zn-field-label"/>
+                        <TextField fx:id="monthsField" styleClass="zn-field" promptText="kosongkan = pakai dari Profil" maxWidth="Infinity"/>
+                        <Label text="Jumlah bulan pengeluaran yang ingin dicover dana darurat." styleClass="zn-hint"/>
+
                         <Region minHeight="16"/>
                         <Button text="🔢  Hitung Estimasi" styleClass="zn-btn-primary" maxWidth="Infinity" onAction="#calculate"/>
                         <Region minHeight="12"/>
                         <TextArea fx:id="resultArea" styleClass="zn-result-area"
                                   wrapText="true" editable="false" prefHeight="280" minHeight="240"
-                                  promptText="Isi form dan klik Hitung..."/>
+                                  promptText="Klik Hitung untuk melihat estimasi..."/>
                     </VBox>
 
                     <!-- KANAN: GOAL TRACKER -->

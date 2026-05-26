@@ -214,9 +214,11 @@ public class DashboardController implements Initializable {
         overallProgress.setProgress(pct);
         progressLabel.setText(String.format("%.1f%%", pct * 100));
 
-        if (pct >= 0.8) overallProgress.getStyleClass().setAll("zn-progress", "zn-progress-green");
-        else if (pct >= 0.4) overallProgress.getStyleClass().setAll("zn-progress");
-        else overallProgress.getStyleClass().setAll("zn-progress", "zn-progress-amber");
+        // PENTING: jangan hapus "progress-bar" — itu class default skin JavaFX.
+        // Tanpa class itu, selector .progress-bar > .bar tidak match → bar isi tidak tergambar.
+        if (pct >= 0.8) overallProgress.getStyleClass().setAll("progress-bar", "zn-progress", "zn-progress-green");
+        else if (pct >= 0.4) overallProgress.getStyleClass().setAll("progress-bar", "zn-progress");
+        else overallProgress.getStyleClass().setAll("progress-bar", "zn-progress", "zn-progress-amber");
 
         goalsCountLabel.setText(String.valueOf(ds.getGoals().size()));
         contribCountLabel.setText(String.valueOf(ds.getContributions().size()));

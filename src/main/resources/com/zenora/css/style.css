@@ -475,3 +475,186 @@
     -fx-text-fill: #F0F0F6;
     -fx-fill: #F0F0F6;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   v2 POLISH — depth, accent gradients, richer panels & progress
+   Ditambahkan agar tampilan tidak generik tanpa mengubah struktur FXML.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* App background: subtle radial vignette */
+.zn-root, .fp-root {
+    -fx-background-color:
+        radial-gradient(center 18% 0%, radius 80%, rgba(79,70,229,0.10), transparent),
+        radial-gradient(center 100% 100%, radius 70%, rgba(124,58,237,0.07), transparent),
+        #0B0D14;
+}
+
+/* Panels — gentle gradient surface + sharper border + larger shadow */
+.zn-panel {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.025), rgba(255,255,255,0.00)),
+        #1A1D27;
+    -fx-background-radius: 16;
+    -fx-border-color: rgba(255,255,255,0.07);
+    -fx-border-radius: 16;
+    -fx-border-width: 1;
+    -fx-padding: 20 22;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 22, 0, 0, 8);
+}
+.zn-panel:hover {
+    -fx-border-color: rgba(129,140,248,0.22);
+}
+
+/* Panel title row — accent indent */
+.zn-panel-title { -fx-font-size: 13.5px; -fx-font-weight: 800; -fx-text-fill: #E5E7EB; }
+.zn-panel-title-row { -fx-padding: 0 0 14 0; }
+.zn-dot-indigo, .zn-dot-violet, .zn-dot-cyan, .zn-dot-green,
+.zn-dot-amber, .zn-dot-red, .zn-dot-gold, .zn-dot-blue,
+.zn-dot-orange, .zn-dot-teal { -fx-font-size: 14px; }
+
+/* Stat values — larger, tighter, gradient where indigo */
+.zn-stat-value { -fx-font-size: 26px; -fx-font-weight: 800; }
+.zn-stat-indigo { -fx-text-fill: linear-gradient(to right, #818CF8, #C4B5FD); }
+.zn-stat-violet { -fx-text-fill: linear-gradient(to right, #A78BFA, #F0ABFC); }
+.zn-stat-green  { -fx-text-fill: linear-gradient(to right, #34D399, #6EE7B7); }
+.zn-stat-amber  { -fx-text-fill: linear-gradient(to right, #FBBF24, #FCD34D); }
+.zn-stat-red    { -fx-text-fill: linear-gradient(to right, #F87171, #FCA5A5); }
+
+/* Stat label — slight letter spacing for premium feel */
+.zn-stat-label { -fx-letter-spacing: 0.08em; }
+
+/* PROGRESS — taller, glossy fill, soft inner glow on track */
+.zn-progress { -fx-min-height: 12; -fx-pref-height: 12; }
+.zn-progress > .track {
+    -fx-background-color: linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(255,255,255,0.04));
+    -fx-background-radius: 8;
+    -fx-background-insets: 0;
+    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.5), 4, 0, 0, 1);
+}
+.zn-progress > .bar {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.0) 50%),
+        linear-gradient(to right, #6366F1, #A78BFA);
+    -fx-background-radius: 8;
+    -fx-background-insets: 0;
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.55), 10, 0, 0, 0);
+}
+.zn-progress-green > .bar {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.0) 50%),
+        linear-gradient(to right, #10B981, #34D399);
+    -fx-effect: dropshadow(gaussian, rgba(52,211,153,0.55), 10, 0, 0, 0);
+}
+.zn-progress-amber > .bar {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.30), rgba(255,255,255,0.0) 50%),
+        linear-gradient(to right, #F59E0B, #FBBF24);
+    -fx-effect: dropshadow(gaussian, rgba(251,191,36,0.55), 10, 0, 0, 0);
+}
+.zn-progress-red > .bar {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255,255,255,0.25), rgba(255,255,255,0.0) 50%),
+        linear-gradient(to right, #EF4444, #F87171);
+    -fx-effect: dropshadow(gaussian, rgba(248,113,113,0.55), 10, 0, 0, 0);
+}
+
+/* Buttons — gradient primary, refined danger/secondary */
+.zn-btn-primary {
+    -fx-background-color: linear-gradient(to right, #4F46E5, #7C3AED);
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.45), 14, 0, 0, 4);
+}
+.zn-btn-primary:hover {
+    -fx-background-color: linear-gradient(to right, #6366F1, #8B5CF6);
+    -fx-effect: dropshadow(gaussian, rgba(124,58,237,0.65), 20, 0, 0, 6);
+}
+
+/* Sidebar — gradient + brighter active item */
+.zn-sidebar {
+    -fx-background-color: linear-gradient(to bottom, #161A26, #10131C);
+}
+.zn-nav-item-active {
+    -fx-background-color: linear-gradient(to right, rgba(79,70,229,0.28), rgba(124,58,237,0.10));
+    -fx-text-fill: #E0E7FF;
+    -fx-effect: dropshadow(gaussian, rgba(79,70,229,0.30), 14, 0, 0, 0);
+}
+
+/* Topbar — subtle bottom glow */
+.zn-topbar {
+    -fx-background-color: linear-gradient(to bottom, #161A26, #13161F);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 16, 0, 0, 3);
+}
+.zn-page-title { -fx-font-size: 22px; -fx-font-weight: 800; }
+
+/* Badges — gradient pill */
+.zn-badge {
+    -fx-background-color: linear-gradient(to right, rgba(79,70,229,0.25), rgba(124,58,237,0.20));
+    -fx-text-fill: #C7D2FE;
+    -fx-font-size: 11px;
+    -fx-padding: 4 10;
+    -fx-background-radius: 999;
+    -fx-border-color: rgba(129,140,248,0.30);
+    -fx-border-radius: 999;
+    -fx-border-width: 1;
+}
+.zn-badge-green { -fx-background-color: linear-gradient(to right, rgba(16,185,129,0.22), rgba(52,211,153,0.18)); -fx-text-fill: #6EE7B7; -fx-border-color: rgba(52,211,153,0.30); }
+.zn-badge-amber { -fx-background-color: linear-gradient(to right, rgba(245,158,11,0.22), rgba(251,191,36,0.18)); -fx-text-fill: #FCD34D; -fx-border-color: rgba(251,191,36,0.30); }
+.zn-badge-red   { -fx-background-color: linear-gradient(to right, rgba(239,68,68,0.22), rgba(248,113,113,0.18)); -fx-text-fill: #FCA5A5; -fx-border-color: rgba(248,113,113,0.30); }
+
+/* Tables — header uppercase chip, hover lift */
+.zn-table .column-header-background {
+    -fx-background-color: linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+}
+.zn-table .column-header { -fx-padding: 12 14; }
+.zn-table .table-row-cell { -fx-cell-size: 38; }
+.zn-table .table-row-cell:hover {
+    -fx-background-color: linear-gradient(to right, rgba(79,70,229,0.14), rgba(79,70,229,0.04));
+}
+
+/* Fields — soft focus glow */
+.zn-field:focused {
+    -fx-border-color: #818CF8;
+    -fx-effect: dropshadow(gaussian, rgba(129,140,248,0.45), 14, 0, 0, 0);
+}
+
+/* Chips — gradient backgrounds + left accent bar */
+.zn-chip-info  {
+    -fx-background-color: linear-gradient(to right, rgba(79,70,229,0.20), rgba(79,70,229,0.06));
+    -fx-border-color: transparent transparent transparent #818CF8;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 9 14;
+    -fx-background-radius: 10;
+}
+.zn-chip-warn  {
+    -fx-background-color: linear-gradient(to right, rgba(251,191,36,0.18), rgba(251,191,36,0.05));
+    -fx-border-color: transparent transparent transparent #FBBF24;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 9 14;
+    -fx-background-radius: 10;
+}
+.zn-chip-ok    {
+    -fx-background-color: linear-gradient(to right, rgba(52,211,153,0.18), rgba(52,211,153,0.05));
+    -fx-border-color: transparent transparent transparent #34D399;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 9 14;
+    -fx-background-radius: 10;
+}
+.fp-card:hover {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(129,140,248,0.10), rgba(255,255,255,0.0)),
+        #21253A;
+    -fx-border-color: rgba(129,140,248,0.45);
+}
+
+/* Empty state — friendlier */
+.zn-empty-icon  { -fx-font-size: 44px; -fx-opacity: 0.55; }
+.zn-empty-title { -fx-text-fill: #9CA3AF; }
+.zn-empty-sub   { -fx-text-fill: #6B7280; -fx-font-size: 12.5px; }
+
+/* Hero — gradient title for MainMenu */
+.fp-hero-title-gold {
+    -fx-text-fill: linear-gradient(to right, #C7D2FE, #A78BFA, #F0ABFC);
+    -fx-font-size: 52px;
+}
+
+/* Pie chart slice strokes — give breathing room */
+.chart-pie { -fx-border-color: #1A1D27; -fx-border-width: 2; }

@@ -5,6 +5,7 @@ import com.zenora.model.Category;
 import com.zenora.model.Contribution;
 import com.zenora.model.DataStore;
 import com.zenora.model.Goal;
+import com.zenora.model.UserProfile;
 import com.zenora.service.ApiClient;
 import com.zenora.service.FinancialCalculator;
 import com.zenora.util.CurrencyFormatter;
@@ -21,23 +22,25 @@ import javafx.scene.control.*;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
- * EmergencyController — Dana Darurat Goal Tracker + Kalkulator.
+ * EmergencyController — kalkulator + goal tracker dana darurat.
  *
- * Dua fungsi utama:
- *   1. Kalkulator: estimasi berapa dana darurat yang dibutuhkan.
- *   2. Goal Tracker: simpan progress & setor ke goal DARURAT di database.
+ * Optimasi: pengeluaran, status rumah tangga, kapasitas, dan target bulan
+ * cakupan diambil OTOMATIS dari Profil (UserProfile) sehingga tidak ada
+ * input ganda. User hanya dapat meng-override cakupan bulan jika perlu.
  */
 public class EmergencyController extends BaseModuleController implements Initializable {
 
     @Override public String moduleTitle() { return "Dana Darurat"; }
 
-    // ── Kalkulator ─────────────────────────────────────────────────────────
-    @FXML private TextField expenseField, monthsField, capacityField;
-    @FXML private ChoiceBox<String> statusChoice;
+    // ── Ringkasan profil (read-only) ───────────────────────────────────────
+    @FXML private Label profileExpenseLabel, profileCapacityLabel,
+                        profileStatusLabel, profileMonthsLabel, profileWarnLabel;
+
+    // ── Kalkulator (hanya override cakupan bulan) ──────────────────────────
+    @FXML private TextField monthsField;
     @FXML private TextArea resultArea;
 
     // ── Goal Tracker ───────────────────────────────────────────────────────
@@ -57,17 +60,7 @@ public class EmergencyController extends BaseModuleController implements Initial
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        // Format ribuan untuk input uang
-        try { com.zenora.util.MoneyTextFormatter.attach(expenseField); } catch (Exception ignored) {}
-        try { com.zenora.util.MoneyTextFormatter.attach(capacityField); } catch (Exception ignored) {}
         try { com.zenora.util.MoneyTextFormatter.attach(depositAmountField); } catch (Exception ignored) {}
-
-        statusChoice.setItems(FXCollections.observableArrayList(
-                "Single (3 bulan)",
-                "Menikah tanpa anak (6 bulan)",
-                "Menikah + anak (12 bulan)",
-                "Freelancer / Self-employed (12 bulan)"));
-        statusChoice.getSelectionModel().selectFirst();
 
         if (storageTypeChoice != null)
             storageTypeChoice.setItems(FXCollections.observableArrayList(
@@ -76,65 +69,90 @@ public class EmergencyController extends BaseModuleController implements Initial
         if (depositDatePicker != null) depositDatePicker.setValue(LocalDate.now());
 
         wireHistoryTable();
+        refreshProfileSummary();
         loadEmergencyGoal();
+    }
+
+    /** Sinkronkan ringkasan profil setiap kali halaman dibuka. */
+    private void refreshProfileSummary() {
+        UserProfile p = DataStore.getInstance().getProfile();
+        double expense  = p.getMonthlyExpense();
+        double capacity = p.effectiveCapacity();
+        int months      = Math.max(1, p.getEmergencyMonths());
+
+        if (profileExpenseLabel  != null) profileExpenseLabel.setText(expense  > 0 ? CurrencyFormatter.format(expense)  : "—");
+        if (profileCapacityLabel != null) profileCapacityLabel.setText(capacity > 0 ? CurrencyFormatter.format(capacity) : "—");
+        if (profileStatusLabel   != null) profileStatusLabel.setText(p.getHouseholdStatus());
+        if (profileMonthsLabel   != null) profileMonthsLabel.setText(months + " bulan");
+
+        if (profileWarnLabel != null) {
+            if (expense <= 0) {
+                profileWarnLabel.setText("⚠ Pengeluaran bulanan belum diisi di Profil. Lengkapi dulu agar kalkulasi akurat.");
+            } else if (capacity <= 0) {
+                profileWarnLabel.setText("⚠ Kapasitas menabung Anda 0 — pendapatan ≤ pengeluaran. Estimasi waktu tidak dapat dihitung.");
+            } else {
+                profileWarnLabel.setText("");
+            }
+        }
+    }
+
+    @FXML
+    private void openProfile() {
+        SceneNavigator.navigateTo("/com/zenora/fxml/Profile.fxml");
     }
 
     // ── Kalkulator ─────────────────────────────────────────────────────────
 
     @FXML
     private void calculate() {
-        InputValidator v = InputValidator.create();
-        double expense  = v.positiveDouble(expenseField.getText(),  "Pengeluaran bulanan");
-        double capacity = v.positiveDouble(capacityField.getText(), "Kapasitas menabung");
+        UserProfile p = DataStore.getInstance().getProfile();
+        double expense  = p.getMonthlyExpense();
+        double capacity = p.effectiveCapacity();
 
-        if (v.hasErrors()) { resultArea.setText("⚠ " + v.errorMessage()); return; }
-
-        int suggested = switch (statusChoice.getSelectionModel().getSelectedIndex()) {
-            case 1 -> 6;
-            case 2, 3 -> 12;
-            default -> 3;
-        };
-        int months;
-        if (monthsField.getText().trim().isEmpty()) {
-            months = suggested;
-        } else {
-            InputValidator v2 = InputValidator.create();
-            months = v2.positiveInt(monthsField.getText(), "Jumlah bulan");
-            if (v2.hasErrors()) { resultArea.setText("⚠ " + v2.errorMessage()); return; }
+        if (expense <= 0) {
+            resultArea.setText("⚠ Pengeluaran bulanan belum diisi di Profil. Buka Profil untuk melengkapi.");
+            return;
         }
 
+        int months = p.getEmergencyMonths();
+        if (monthsField != null && !monthsField.getText().trim().isEmpty()) {
+            InputValidator v = InputValidator.create();
+            months = v.positiveInt(monthsField.getText(), "Jumlah bulan");
+            if (v.hasErrors()) { resultArea.setText("⚠ " + v.errorMessage()); return; }
+        }
+        if (months < 1) months = 6;
+
         double need           = FinancialCalculator.emergencyFundNeeded(expense, months);
-        int monthsToBuild     = capacity > 0 ? (int) Math.ceil(need / capacity) : Integer.MAX_VALUE;
+        int    monthsToBuild  = capacity > 0 ? (int) Math.ceil(need / capacity) : Integer.MAX_VALUE;
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== ESTIMASI DANA DARURAT ===\n\n");
-        sb.append(String.format("Status                      : %s%n", statusChoice.getValue()));
-        sb.append(String.format("Cakupan bulan               : %d bulan%n", months));
-        sb.append(String.format("Pengeluaran bulanan         : %s%n", CurrencyFormatter.format(expense)));
-        sb.append(String.format("%nDana darurat dibutuhkan     : %s%n", CurrencyFormatter.format(need)));
+        sb.append(String.format("Status                : %s%n", p.getHouseholdStatus()));
+        sb.append(String.format("Cakupan bulan         : %d bulan%n", months));
+        sb.append(String.format("Pengeluaran / bulan   : %s%n", CurrencyFormatter.format(expense)));
+        sb.append(String.format("Kapasitas / bulan     : %s%n", CurrencyFormatter.format(capacity)));
+        sb.append(String.format("%nDana darurat dibutuhkan : %s%n", CurrencyFormatter.format(need)));
         if (monthsToBuild < Integer.MAX_VALUE) {
             sb.append(String.format(
-                    "%nDengan menabung %s/bulan,%nAnda butuh sekitar %d bulan (%.1f tahun).%n",
+                    "%nDengan menabung %s/bulan,%nAnda butuh ± %d bulan (%.1f tahun).%n",
                     CurrencyFormatter.format(capacity), monthsToBuild, monthsToBuild / 12.0));
+        } else {
+            sb.append("\nKapasitas menabung 0 — tidak dapat memperkirakan waktu.\n");
         }
         sb.append("\nTips:\n");
-        sb.append("• Simpan di instrumen likuid: tabungan / reksa dana pasar uang.\n");
-        sb.append("• Pisahkan dari rekening harian agar tidak terpakai.\n");
-        sb.append("• Setelah terkumpul, lanjutkan ke goal lain (multi-goal planning).\n");
-        sb.append("\n→ Gunakan panel kanan untuk mulai tracking setoran dana darurat Anda.");
+        sb.append("• Simpan di instrumen likuid: tabungan / RDPU.\n");
+        sb.append("• Pisahkan dari rekening harian.\n");
+        sb.append("• Setelah lengkap, alihkan setoran ke goal lain.\n");
+        sb.append("\n→ Gunakan panel kanan untuk mulai tracking setoran.");
         resultArea.setText(sb.toString());
     }
 
     // ── Goal Tracker ───────────────────────────────────────────────────────
 
-    /** Cari goal dengan kategori DARURAT di DataStore. */
     private void loadEmergencyGoal() {
         emergencyGoal = null;
         for (Goal g : DataStore.getInstance().getGoals()) {
-            if (g.getCategory() == Category.DARURAT) {
-                emergencyGoal = g;
-                break;
-            }
+            if (g.getCategory() == Category.DARURAT) { emergencyGoal = g; break; }
         }
         refreshTrackerUI();
     }
@@ -174,7 +192,6 @@ public class EmergencyController extends BaseModuleController implements Initial
             else goalStatusLabel.setText("⚠ Dana darurat belum mencukupi, prioritaskan ini.");
         }
 
-        // Isi riwayat setoran untuk goal ini
         if (historyTable != null) {
             List<Contribution> contribs = DataStore.getInstance().contributionsFor(emergencyGoal.getId());
             contribs.sort((a, b) -> b.getDate().compareTo(a.getDate()));
@@ -184,44 +201,31 @@ public class EmergencyController extends BaseModuleController implements Initial
 
     @FXML
     private void createGoal() {
-        // Ambil nama dan target dari form kalkulator (jika sudah diisi), atau buat default
+        UserProfile p = DataStore.getInstance().getProfile();
+        double expense = p.getMonthlyExpense();
+        int    months  = Math.max(1, p.getEmergencyMonths());
+        double target  = expense * months;
+
+        if (target <= 0) {
+            new Alert(Alert.AlertType.WARNING,
+                    "Lengkapi pengeluaran bulanan di Profil terlebih dahulu.").showAndWait();
+            return;
+        }
+
         String name   = "Dana Darurat";
-        double target = 0;
-        if (!expenseField.getText().isBlank()) {
-            try {
-                double exp = Double.parseDouble(expenseField.getText().replace(",", "").replace(".", ""));
-                int m = switch (statusChoice.getSelectionModel().getSelectedIndex()) {
-                    case 1 -> 6; case 2, 3 -> 12; default -> 3;
-                };
-                target = exp * m;
-            } catch (Exception ignored) {}
-        }
-
-        if (target == 0) {
-            // Minta target manual
-            TextInputDialog dialog = new TextInputDialog("0");
-            dialog.setTitle("Target Dana Darurat");
-            dialog.setHeaderText("Masukkan target dana darurat (Rp):");
-            dialog.setContentText("Target (Rp):");
-            Optional<String> result = dialog.showAndWait();
-            if (result.isEmpty()) return;
-            try { target = Double.parseDouble(result.get().replace(",", "").replace(".", "")); }
-            catch (Exception e) { new Alert(Alert.AlertType.WARNING, "Angka tidak valid.").showAndWait(); return; }
-        }
-
         String storageType = storageTypeChoice != null ? storageTypeChoice.getValue() : "Bank";
         String storageLocation = storageLocationField != null ? storageLocationField.getText().trim() : "";
 
-        final double finalTarget = target;
-        final String finalStorage = storageType;
+        final double finalTarget   = target;
+        final String finalStorage  = storageType;
         final String finalLocation = storageLocation;
 
         Thread t = new Thread(() -> {
-            GoalRequest req = new GoalRequest(name, finalTarget, 12, 0.0, 1,
+            GoalRequest req = new GoalRequest(name, finalTarget, months, 0.0, 1,
                     "DARURAT", finalStorage, finalLocation);
             ApiClient.ApiResponse resp = ApiClient.post("/api/goals", req);
             Platform.runLater(() -> {
-                Goal g = new Goal(name, finalTarget, 12, 0.0, 1);
+                Goal g = new Goal(name, finalTarget, months, 0.0, 1);
                 g.setCategory(Category.DARURAT);
                 g.setStorageType(finalStorage);
                 g.setStorageLocation(finalLocation);
@@ -282,7 +286,6 @@ public class EmergencyController extends BaseModuleController implements Initial
         t.setDaemon(true); t.start();
     }
 
-    // ── Tabel riwayat ──────────────────────────────────────────────────────
     private void wireHistoryTable() {
         if (historyTable == null) return;
         colDate.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().getDate())));
@@ -297,7 +300,6 @@ public class EmergencyController extends BaseModuleController implements Initial
         historyTable.setPlaceholder(new Label("Belum ada setoran."));
     }
 
-    // ── Inner DTOs ─────────────────────────────────────────────────────────
     private static class GoalRequest {
         String name; double targetAmount; int months; double interestRate;
         int priority; String category; String storageType; String storageLocation;

@@ -5,10 +5,12 @@ import com.zenora.model.Category;
 import com.zenora.model.Contribution;
 import com.zenora.model.DataStore;
 import com.zenora.model.Goal;
+import com.zenora.model.UserProfile;
 import com.zenora.service.ApiClient;
 import com.zenora.service.FinancialCalculator;
 import com.zenora.util.CurrencyFormatter;
 import com.zenora.util.InputValidator;
+import com.zenora.util.SceneNavigator;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -24,19 +26,24 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
- * RetirementController — Dana Pensiun Goal Tracker + Kalkulator.
+ * RetirementController — kalkulator + goal tracker dana pensiun.
  *
- * Dua fungsi utama:
- *   1. Kalkulator: estimasi total dana pensiun dan setoran bulanan yang diperlukan.
- *   2. Goal Tracker: simpan progress & setor ke goal PENSIUN di database.
+ * Optimasi: usia saat ini, inflasi, dan kapasitas menabung diambil OTOMATIS
+ * dari Profil (UserProfile) untuk menghindari input ganda. User hanya
+ * mengisi parameter spesifik pensiun (target umur, lama pensiun,
+ * kebutuhan bulanan, asumsi return).
  */
 public class RetirementController extends BaseModuleController implements Initializable {
 
     @Override public String moduleTitle() { return "Dana Pensiun"; }
 
+    // ── Ringkasan profil (read-only) ───────────────────────────────────────
+    @FXML private Label profileAgeLabel, profileInflationLabel,
+                        profileCapacityLabel, profileWarnLabel;
+
     // ── Kalkulator ─────────────────────────────────────────────────────────
-    @FXML private TextField currentAgeField, retirementAgeField, yearsInRetirementField,
-            monthlyNeedField, inflationField, returnPreField, returnPostField;
+    @FXML private TextField retirementAgeField, yearsInRetirementField,
+            monthlyNeedField, returnPreField, returnPostField;
     @FXML private TextArea resultArea;
 
     // ── Goal Tracker ───────────────────────────────────────────────────────
@@ -54,14 +61,13 @@ public class RetirementController extends BaseModuleController implements Initia
     @FXML private Button depositButton, createGoalButton;
 
     private Goal retirementGoal = null;
-    /** Target dari hasil kalkulasi terakhir — bisa dipakai buat buat goal. */
     private double lastCalculatedTarget = 0;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        // Format ribuan untuk input uang
         try { com.zenora.util.MoneyTextFormatter.attach(depositAmountField); } catch (Exception ignored) {}
         try { com.zenora.util.MoneyTextFormatter.attach(goalTargetInputField); } catch (Exception ignored) {}
+        try { com.zenora.util.MoneyTextFormatter.attach(monthlyNeedField); } catch (Exception ignored) {}
 
         if (storageTypeChoice != null)
             storageTypeChoice.setItems(FXCollections.observableArrayList(
@@ -69,26 +75,72 @@ public class RetirementController extends BaseModuleController implements Initia
 
         if (depositDatePicker != null) depositDatePicker.setValue(LocalDate.now());
 
+        // Default asumsi return
+        if (returnPreField  != null && returnPreField.getText().isBlank())  returnPreField.setText("8.0");
+        if (returnPostField != null && returnPostField.getText().isBlank()) returnPostField.setText("5.0");
+        if (yearsInRetirementField != null && yearsInRetirementField.getText().isBlank())
+            yearsInRetirementField.setText("20");
+
         wireHistoryTable();
+        refreshProfileSummary();
         loadRetirementGoal();
+    }
+
+    private void refreshProfileSummary() {
+        UserProfile p = DataStore.getInstance().getProfile();
+        int    age       = p.getAge();
+        double inflation = p.getInflationPct();
+        double capacity  = p.effectiveCapacity();
+
+        if (profileAgeLabel       != null) profileAgeLabel.setText(age > 0 ? age + " tahun" : "—");
+        if (profileInflationLabel != null) profileInflationLabel.setText(String.format("%.1f%% / thn", inflation));
+        if (profileCapacityLabel  != null) profileCapacityLabel.setText(capacity > 0 ? CurrencyFormatter.format(capacity) : "—");
+
+        if (profileWarnLabel != null) {
+            if (age <= 0) {
+                profileWarnLabel.setText("⚠ Usia belum diisi di Profil. Lengkapi dulu untuk hitungan akurat.");
+            } else if (capacity <= 0) {
+                profileWarnLabel.setText("⚠ Kapasitas menabung 0 — periksa pendapatan & pengeluaran di Profil.");
+            } else {
+                profileWarnLabel.setText("");
+            }
+        }
+
+        // Saran default umur pensiun
+        if (retirementAgeField != null && retirementAgeField.getText().isBlank() && age > 0) {
+            retirementAgeField.setText(String.valueOf(Math.max(age + 1, 55)));
+        }
+    }
+
+    @FXML
+    private void openProfile() {
+        SceneNavigator.navigateTo("/com/zenora/fxml/Profile.fxml");
     }
 
     // ── Kalkulator ─────────────────────────────────────────────────────────
 
     @FXML
     private void calculate() {
-        InputValidator v = InputValidator.create();
-        int    currentAge        = v.positiveInt(currentAgeField.getText(),          "Usia saat ini");
-        int    retirementAge     = v.positiveInt(retirementAgeField.getText(),        "Usia pensiun");
-        int    yearsInRetirement = v.positiveInt(yearsInRetirementField.getText(),    "Lama pensiun (tahun)");
-        double monthlyNeed       = v.positiveDouble(monthlyNeedField.getText(),       "Kebutuhan bulanan");
-        double inflation         = v.nonNegativeDouble(inflationField.getText(),      "Inflasi (%)");
-        double rPre              = v.nonNegativeDouble(returnPreField.getText(),      "Return pra-pensiun (%)");
-        double rPost             = v.nonNegativeDouble(returnPostField.getText(),     "Return pasca-pensiun (%)");
+        UserProfile p = DataStore.getInstance().getProfile();
+        int    currentAge = p.getAge();
+        double inflation  = p.getInflationPct();
 
+        if (currentAge <= 0) {
+            resultArea.setText("⚠ Usia belum diisi di Profil. Buka Profil untuk melengkapi.");
+            return;
+        }
+
+        InputValidator v = InputValidator.create();
+        int    retirementAge     = v.positiveInt(retirementAgeField.getText(),     "Usia pensiun");
+        int    yearsInRetirement = v.positiveInt(yearsInRetirementField.getText(), "Lama pensiun (tahun)");
+        double monthlyNeed       = v.positiveDouble(monthlyNeedField.getText(),    "Kebutuhan bulanan");
+        double rPre              = v.positiveDouble(returnPreField.getText(),      "Return pra-pensiun");
+        double rPost             = v.positiveDouble(returnPostField.getText(),     "Return pasca-pensiun");
         if (v.hasErrors()) { resultArea.setText("⚠ " + v.errorMessage()); return; }
+
         if (retirementAge <= currentAge) {
-            resultArea.setText("⚠ Usia pensiun harus lebih besar dari usia saat ini."); return;
+            resultArea.setText("⚠ Usia pensiun harus lebih besar dari usia saat ini (" + currentAge + ").");
+            return;
         }
 
         int    yearsToRetire   = retirementAge - currentAge;
@@ -102,18 +154,19 @@ public class RetirementController extends BaseModuleController implements Initia
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== ESTIMASI DANA PENSIUN ===\n\n");
-        sb.append(String.format("Tahun menuju pensiun             : %d tahun%n", yearsToRetire));
-        sb.append(String.format("Kebutuhan bulanan (kini)         : %s%n", CurrencyFormatter.format(monthlyNeed)));
-        sb.append(String.format("Kebutuhan bulanan saat pensiun   : %s%n", CurrencyFormatter.format(monthlyAtRetire)));
-        sb.append(String.format("%nTotal dana pensiun dibutuhkan    : %s%n", CurrencyFormatter.format(fundNeeded)));
-        sb.append(String.format("%n→ Perlu menabung/investasi sekitar:%n   %s per bulan%n   selama %d tahun (%d bulan)%n",
+        sb.append(String.format("Usia saat ini (Profil)        : %d tahun%n", currentAge));
+        sb.append(String.format("Usia pensiun target           : %d tahun%n", retirementAge));
+        sb.append(String.format("Tahun menuju pensiun          : %d tahun%n", yearsToRetire));
+        sb.append(String.format("Kebutuhan bulanan (kini)      : %s%n", CurrencyFormatter.format(monthlyNeed)));
+        sb.append(String.format("Kebutuhan bulanan saat pensiun: %s%n", CurrencyFormatter.format(monthlyAtRetire)));
+        sb.append(String.format("%nTotal dana pensiun dibutuhkan : %s%n", CurrencyFormatter.format(fundNeeded)));
+        sb.append(String.format("%n→ Perlu menabung sekitar:%n   %s per bulan%n   selama %d tahun (%d bulan)%n",
                 CurrencyFormatter.format(monthlyContrib), yearsToRetire, yearsToRetire * 12));
-        sb.append(String.format("%nAsumsi: return pra-pensiun %.1f%%/thn, pasca %.1f%%/thn, inflasi %.1f%%/thn.",
+        sb.append(String.format("%nAsumsi: return pra %.1f%%/thn, pasca %.1f%%/thn, inflasi %.1f%%/thn.",
                 rPre, rPost, inflation));
         sb.append("\n\n→ Klik \"Buat Goal Pensiun\" di panel kanan untuk mulai tracking.");
         resultArea.setText(sb.toString());
 
-        // Update hint di panel kanan
         if (goalMonthlyNeededLabel != null)
             goalMonthlyNeededLabel.setText(
                     "Setoran bulanan ideal: " + CurrencyFormatter.format(monthlyContrib));
@@ -126,10 +179,7 @@ public class RetirementController extends BaseModuleController implements Initia
     private void loadRetirementGoal() {
         retirementGoal = null;
         for (Goal g : DataStore.getInstance().getGoals()) {
-            if (g.getCategory() == Category.PENSIUN) {
-                retirementGoal = g;
-                break;
-            }
+            if (g.getCategory() == Category.PENSIUN) { retirementGoal = g; break; }
         }
         refreshTrackerUI();
     }
@@ -164,7 +214,7 @@ public class RetirementController extends BaseModuleController implements Initia
         if (goalStorageLabel != null) goalStorageLabel.setText(
                 retirementGoal.getStorageType() + " — " + retirementGoal.getStorageLocation());
         if (goalStatusLabel  != null) {
-            if (pct >= 1)        goalStatusLabel.setText("✅ Dana pensiun TERPENUHI! Luar biasa!");
+            if (pct >= 1)         goalStatusLabel.setText("✅ Dana pensiun TERPENUHI! Luar biasa!");
             else if (pct >= 0.75) goalStatusLabel.setText("🎯 Hampir sampai, pertahankan konsistensi!");
             else if (pct >= 0.5)  goalStatusLabel.setText("⚡ Sudah setengah jalan, terus lanjutkan!");
             else if (pct >= 0.25) goalStatusLabel.setText("📈 Progres bagus, jangan berhenti!");
@@ -183,7 +233,6 @@ public class RetirementController extends BaseModuleController implements Initia
         String name   = "Dana Pensiun";
         double target = lastCalculatedTarget;
 
-        // Cek dari goalTargetInputField
         if (goalTargetInputField != null && !goalTargetInputField.getText().isBlank()) {
             try { target = Double.parseDouble(goalTargetInputField.getText().replace(",","").replace(".","")); }
             catch (Exception ignored) {}
@@ -202,11 +251,14 @@ public class RetirementController extends BaseModuleController implements Initia
 
         String storageType     = storageTypeChoice     != null ? storageTypeChoice.getValue()     : "Investasi";
         String storageLocation = storageLocationField  != null ? storageLocationField.getText().trim() : "";
-        int    yearsToRetire   = 30; // default
+
+        // Ambil tahun ke pensiun dari Profil (usia) + form
+        UserProfile p = DataStore.getInstance().getProfile();
+        int yearsToRetire = 30;
         try {
-            int ca = Integer.parseInt(currentAgeField.getText().trim());
+            int ca = p.getAge();
             int ra = Integer.parseInt(retirementAgeField.getText().trim());
-            if (ra > ca) yearsToRetire = ra - ca;
+            if (ra > ca && ca > 0) yearsToRetire = ra - ca;
         } catch (Exception ignored) {}
 
         final double finalTarget  = target;
@@ -280,7 +332,6 @@ public class RetirementController extends BaseModuleController implements Initia
         t.setDaemon(true); t.start();
     }
 
-    // ── Tabel riwayat ──────────────────────────────────────────────────────
     private void wireHistoryTable() {
         if (historyTable == null) return;
         colDate.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().getDate())));
@@ -295,7 +346,6 @@ public class RetirementController extends BaseModuleController implements Initia
         historyTable.setPlaceholder(new Label("Belum ada setoran."));
     }
 
-    // ── Inner DTOs ─────────────────────────────────────────────────────────
     private static class GoalRequest {
         String name; double targetAmount; int months; double interestRate;
         int priority; String category; String storageType; String storageLocation;

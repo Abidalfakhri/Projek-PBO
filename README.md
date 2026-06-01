@@ -93,7 +93,7 @@ Semua atribut di class model dan entity bersifat `private`, hanya dapat diakses 
 ```bash
 # 1. Clone repositori
 git clone https://github.com/Abidalfakhri/UASPBO_Zenora__KelompokTujuh.git
-cd UAS_PBO_Zenora_KelompokTujuh
+cd UASPBO_Zenora_KelompokTujuh
 
 # 2. Jalankan aplikasi (mode development)
 mvn clean javafx:run
